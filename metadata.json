@@ -1,0 +1,6 @@
+{
+  "name": "OmniSnap - Tải Video Không Logo Đa Nền Tảng",
+  "description": "Tải video chất lượng cao không logo (HD, 1080p, 4K, MP3) từ Douyin, TikTok, Facebook, X, Instagram, Bilibili. Tự động nhận diện liên kết chỉ với 1 cú click.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
