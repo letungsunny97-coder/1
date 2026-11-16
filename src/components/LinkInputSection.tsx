@@ -31,6 +31,7 @@ export const LinkInputSection: React.FC<LinkInputSectionProps> = ({
 }) => {
   const [detectedPlatform, setDetectedPlatform] = useState<PlatformId>('unknown');
   const [copiedClipboardState, setCopiedClipboardState] = useState(false);
+  const [pasteHint, setPasteHint] = useState(false);
 
   useEffect(() => {
     if (inputValue.trim()) {
@@ -60,10 +61,17 @@ export const LinkInputSection: React.FC<LinkInputSectionProps> = ({
       // Ignore Android bridge exception
     }
 
-    // 2. Standard navigator.clipboard (Desktop & Modern mobile browsers)
+    // 2. Standard navigator.clipboard (only if not denied by iframe policy)
     if (!pastedText) {
       try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
+        let permissionDenied = false;
+        if (navigator.permissions && navigator.permissions.query) {
+          try {
+            const status = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName });
+            if (status.state === 'denied') permissionDenied = true;
+          } catch {}
+        }
+        if (!permissionDenied && navigator.clipboard && navigator.clipboard.readText) {
           const text = await navigator.clipboard.readText();
           if (text && text.trim()) {
             pastedText = text;
@@ -74,41 +82,25 @@ export const LinkInputSection: React.FC<LinkInputSectionProps> = ({
       }
     }
 
-    // 3. Fallback: focus input and trigger execCommand or manual prompt if browser blocks permissions
-    if (!pastedText) {
-      const inputEl = document.querySelector('input[aria-label="Đường dẫn video cần tải"]') as HTMLInputElement;
-      if (inputEl) {
-        inputEl.focus();
-        try {
-          // Attempt document paste
-          const success = document.execCommand('paste');
-          if (success && inputEl.value) {
-            pastedText = inputEl.value;
-          }
-        } catch {
-          // Ignore execCommand fail
-        }
-      }
-    }
-
-    // Process pasted text if found
+    // 3. Process pasted text if found, otherwise focus input with subtle inline Ctrl+V hint
     if (pastedText && pastedText.trim()) {
+      setPasteHint(false);
       setInputValue(pastedText.trim());
       setCopiedClipboardState(true);
       setTimeout(() => setCopiedClipboardState(false), 2000);
 
-      // Auto scan clean URL
       const clean = extractCleanUrl(pastedText.trim());
       if (clean) {
         onScan(clean);
       }
     } else {
-      // Focus directly into input so user keyboard shows "Paste / Dán" suggestion immediately without any annoying alert popup
       const inputEl = document.querySelector('input[aria-label="Đường dẫn video cần tải"]') as HTMLInputElement;
       if (inputEl) {
         inputEl.focus();
         inputEl.select();
       }
+      setPasteHint(true);
+      setTimeout(() => setPasteHint(false), 2500);
     }
   };
 
@@ -175,7 +167,7 @@ export const LinkInputSection: React.FC<LinkInputSectionProps> = ({
             >
               <ClipboardPaste className="w-3.5 h-3.5 text-indigo-400" />
               <span className="hidden sm:inline">
-                {copiedClipboardState ? 'Đã dán!' : 'Dán'}
+                {copiedClipboardState ? 'Đã dán!' : pasteHint ? 'Ctrl+V' : 'Dán'}
               </span>
             </button>
           </div>

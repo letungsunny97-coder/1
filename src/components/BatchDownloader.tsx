@@ -63,6 +63,8 @@ export const BatchDownloader: React.FC<BatchDownloaderProps> = ({
 
       try {
         let metadata: VideoItemMetadata | null = null;
+        let serverError: string | undefined;
+        let serverRespondedJson = false;
         try {
           const endpoint = getApiEndpoint('/api/extract');
           if (endpoint) {
@@ -71,16 +73,20 @@ export const BatchDownloader: React.FC<BatchDownloaderProps> = ({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ url: current.cleanUrl || current.rawUrl }),
             });
-            if (resp.ok) {
+            const ct = resp.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              serverRespondedJson = true;
               const resJson = await resp.json();
               if (resJson.success && resJson.data) {
                 metadata = resJson.data;
+              } else if (resJson.error) {
+                serverError = resJson.error;
               }
             }
           }
         } catch {}
 
-        if (!metadata) {
+        if (!metadata && !serverRespondedJson) {
           metadata = await extractVideo(current.cleanUrl || current.rawUrl);
         }
 
@@ -97,7 +103,7 @@ export const BatchDownloader: React.FC<BatchDownloaderProps> = ({
                 ? {
                     ...item,
                     status: 'error',
-                    error: 'Không thể quét liên kết này.',
+                    error: serverError || 'Không thể quét liên kết này.',
                   }
                 : item
             )
@@ -134,7 +140,7 @@ export const BatchDownloader: React.FC<BatchDownloaderProps> = ({
     try {
       const androidBridge = (window as any).AndroidBridge;
       if (androidBridge && typeof androidBridge.downloadFile === 'function') {
-        const mime = option.format === 'mp3' ? 'audio/mpeg' : 'video/mp4';
+        const mime = option.format === 'mp3' ? 'audio/mpeg' : option.format === 'jpg' ? 'image/jpeg' : 'video/mp4';
         androidBridge.downloadFile(downloadUrl, filename, mime);
         setItems((prev) =>
           prev.map((it) => (it.id === batchItem.id ? { ...it, downloaded: true } : it))
@@ -146,8 +152,18 @@ export const BatchDownloader: React.FC<BatchDownloaderProps> = ({
       }
     } catch {}
 
+    const needsProxy = /etacloud\.org|vidsnap|akamaized\.net|upos-|bilivideo|xhscdn|rednotecdn|xiaohongshu|rapidcdn\.app|snapcdn\.app|fbcdn\.net|cdninstagram\.com|twimg\.com|tikwm\.com|tiktokcdn|douyinvod|amemv/i.test(downloadUrl);
+    const proxyEndpoint = getApiEndpoint(
+      `/api/proxy-download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(
+        filename
+      )}&format=${option.format}`
+    );
+
     // 2. Fetch as Blob
     try {
+      if (needsProxy && proxyEndpoint) {
+        throw new Error('Use proxy');
+      }
       const response = await fetch(downloadUrl, { mode: 'cors' });
       if (response.ok) {
         const blob = await response.blob();
@@ -165,13 +181,15 @@ export const BatchDownloader: React.FC<BatchDownloaderProps> = ({
         throw new Error('Blob failed');
       }
     } catch {
-      // 3. Fallback direct link
+      // 3. Fallback server proxy or direct link
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = proxyEndpoint || downloadUrl;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      setTimeout(() => {
+        try { document.body.removeChild(link); } catch {}
+      }, 1000);
     }
 
     setItems((prev) =>
@@ -194,10 +212,11 @@ export const BatchDownloader: React.FC<BatchDownloaderProps> = ({
 
   const handleFillSampleBatch = () => {
     const sampleBatchUrls = [
-      'https://v.douyin.com/i8Kq7W8/',
-      'https://vt.tiktok.com/ZS6M8d9qa/',
-      'https://x.com/SpaceX/status/1768262705573425514',
-      'https://www.bilibili.com/video/BV1xx411c7mD',
+      PLATFORMS.youtube.sampleUrl,
+      PLATFORMS.douyin.sampleUrl,
+      PLATFORMS.tiktok.sampleUrl,
+      PLATFORMS.x.sampleUrl,
+      PLATFORMS.bilibili.sampleUrl,
     ].join('\n');
     setInputText(sampleBatchUrls);
   };
@@ -390,7 +409,11 @@ https://www.bilibili.com/video/BV1xx411c7mD`}
                         ) : (
                           <>
                             <Download className="w-3.5 h-3.5" />
-                            <span>Tải MP4</span>
+                            <span>
+                              {(it.metadata?.options.find((o) => o.isRecommended) || it.metadata?.options[0])?.format === 'jpg'
+                                ? 'Tải Ảnh'
+                                : 'Tải MP4'}
+                            </span>
                           </>
                         )}
                       </button>

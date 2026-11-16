@@ -24,7 +24,18 @@ export const PhoneModal: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('Sao chép liên kết:', currentUrl);
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = currentUrl;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {}
     }
   };
 

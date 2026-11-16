@@ -60,8 +60,18 @@ export const VideoResultCard: React.FC<VideoResultCardProps> = ({
       // Fallback
     }
 
-    // 2. Fetch as Blob directly
+    const needsProxy = /etacloud\.org|vidsnap|akamaized\.net|upos-|bilivideo|xhscdn|rednotecdn|xiaohongshu|rapidcdn\.app|snapcdn\.app|fbcdn\.net|cdninstagram\.com|twimg\.com|tikwm\.com|tiktokcdn|douyinvod|amemv/i.test(downloadUrl);
+    const proxyEndpoint = getApiEndpoint(
+      `/api/proxy-download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(
+        filename
+      )}&format=${extension}`
+    );
+
+    // 2. Fetch as Blob directly (skip if upstream requires server Referer/Origin headers)
     try {
+      if (needsProxy && proxyEndpoint) {
+        throw new Error('Use server proxy');
+      }
       const response = await fetch(downloadUrl, { mode: 'cors' });
       if (response.ok) {
         const blob = await response.blob();
@@ -81,7 +91,7 @@ export const VideoResultCard: React.FC<VideoResultCardProps> = ({
     } catch {
       // 3. Fallback to server proxy-download to avoid CORS errors
       try {
-        const proxyUrl = getApiEndpoint(
+        const proxyUrl = proxyEndpoint || getApiEndpoint(
           `/api/proxy-download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(
             filename
           )}&format=${extension}`
@@ -121,7 +131,18 @@ export const VideoResultCard: React.FC<VideoResultCardProps> = ({
       setCopiedId(option.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      window.prompt('Sao chép liên kết tải:', option.url);
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = option.url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setCopiedId(option.id);
+        setTimeout(() => setCopiedId(null), 2000);
+      } catch {}
     }
   };
 
@@ -149,8 +170,18 @@ export const VideoResultCard: React.FC<VideoResultCardProps> = ({
       }
     } catch {}
 
-    // 2. Web Blob download
+    const needsProxy = /etacloud\.org|vidsnap|akamaized\.net|upos-|bilivideo|xhscdn|rednotecdn|xiaohongshu|rapidcdn\.app|fbcdn\.net|cdninstagram\.com|twimg\.com|tikwm\.com|tiktokcdn|douyinvod|amemv/i.test(imgUrl);
+    const proxyEndpoint = getApiEndpoint(
+      `/api/proxy-download?url=${encodeURIComponent(imgUrl)}&filename=${encodeURIComponent(
+        filename
+      )}&format=jpg`
+    );
+
+    // 2. Web Blob download (use server proxy directly if upstream blocks CORS/Referer)
     try {
+      if (needsProxy && proxyEndpoint) {
+        throw new Error('Use server proxy');
+      }
       const response = await fetch(imgUrl, { mode: 'cors' });
       if (response.ok) {
         const blob = await response.blob();

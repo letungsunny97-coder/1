@@ -108,6 +108,7 @@ export default function App() {
       if (!data) {
         const endpoint = getApiEndpoint('/api/extract');
         if (endpoint) {
+          let serverRespondedJson = false;
           try {
             const resp = await fetch(endpoint, {
               method: 'POST',
@@ -117,6 +118,7 @@ export default function App() {
 
             const contentType = resp.headers.get('content-type') || '';
             if (contentType.includes('application/json')) {
+              serverRespondedJson = true;
               const resJson = await resp.json();
               if (resJson.success && resJson.data) {
                 data = resJson.data;
@@ -128,8 +130,8 @@ export default function App() {
               data = await extractVideo(cleanUrl);
             }
           } catch (apiErr: any) {
-            // If server failed or threw, always try client extraction before giving up
-            if (!data) {
+            // Only fall back to client extraction when the backend endpoint wasn't reachable / non-JSON
+            if (!data && !serverRespondedJson) {
               try {
                 data = await extractVideo(cleanUrl);
               } catch {
@@ -139,6 +141,8 @@ export default function App() {
                     : apiErr?.message || 'Có lỗi khi phân tích liên kết. Vui lòng thử lại sau ít giây.';
                 throw new Error(msg);
               }
+            } else if (!data && apiErr) {
+              throw apiErr;
             }
           }
         } else {

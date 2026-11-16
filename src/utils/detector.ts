@@ -37,8 +37,8 @@ export const PLATFORMS: Record<PlatformId, PlatformConfig> = {
     gradient: 'from-rose-500 via-red-500 to-pink-600',
     domainKeywords: ['xiaohongshu.com', 'xhslink.com', 'rednote'],
     placeholder: 'Dán link Tiểu Hồng Thư (ví dụ: http://xhslink.com/... hoặc xiaohongshu.com)...',
-    sampleUrl: 'http://xhslink.com/o/21DKXV988zp',
-    sampleTitle: 'Tiểu Hồng Thư - Ảnh & Video HD Không Logo',
+    sampleUrl: 'https://www.xiaohongshu.com/discovery/item/6a658b6c000000000a03adcf?xsec_token=ABUgG3KfS3vZg1s5gjDbRERicZMJi7OQtHzHxvwd6N7yE=',
+    sampleTitle: 'Tiểu Hồng Thư - Video & Ảnh HD Không Logo',
     icon: 'BookOpen',
     supportsNoWatermark: true,
     maxQuality: '4K / 1080p / Ảnh Gốc',
@@ -140,13 +140,13 @@ export function extractCleanUrl(rawInput: string): string {
   // Strip surrounding quotes: single quotes, double quotes, backticks, smart quotes
   trimmed = trimmed.replace(/^['"“‘`]+/, '').replace(/['"”’`]+$/, '').trim();
 
-  // Look for http:// or https:// URL pattern inside the text
-  const urlRegex = /(https?:\/\/[^\s<>"'{}|\\^`[\]]+)/i;
+  // Look for http:// or https:// URL pattern inside the text (stops cleanly before CJK/Vietnamese share text)
+  const urlRegex = /(https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]+)/i;
   const match = trimmed.match(urlRegex);
 
   if (match && match[1]) {
-    // Clean trailing punctuation and quotes often attached from copy-paste like 。 hoặc , hoặc ) hoặc ' "
-    return match[1].replace(/[。，,、)）;；!！?？'"'”’]+$/, '').trim();
+    // Clean trailing punctuation and quotes often attached from copy-paste like , hoặc ) hoặc ' "
+    return match[1].replace(/[.,);!?'"]+$/, '').trim();
   }
 
   // If user pasted without protocol, e.g. "www.tiktok.com/@..." or "www.facebook.com/share/v/..." or "youtu.be/..."
@@ -236,6 +236,8 @@ export function extractResourceId(url: string, platform: PlatformId): string | n
       if (beMatch) return beMatch[1];
       const shortsMatch = clean.match(/\/shorts\/([a-zA-Z0-9_-]{11})/i);
       if (shortsMatch) return shortsMatch[1];
+      const liveMatch = clean.match(/\/live\/([a-zA-Z0-9_-]{11})/i);
+      if (liveMatch) return liveMatch[1];
       const embedMatch = clean.match(/\/embed\/([a-zA-Z0-9_-]{11})/i);
       return embedMatch ? embedMatch[1] : null;
     }

@@ -86,7 +86,13 @@ test('extractResourceId extracts platform IDs correctly', () => {
   assert.equal(extractResourceId('https://www.facebook.com/share/v/1JEX9aVaex/', 'facebook'), '1JEX9aVaex');
   assert.equal(extractResourceId('https://www.xiaohongshu.com/explore/654877f2000000003201416e', 'xiaohongshu'), '654877f2000000003201416e');
   assert.equal(extractResourceId('http://xhslink.com/a/abcdef', 'xiaohongshu'), 'abcdef');
-  assert.equal(extractResourceId('https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'youtube'), 'dQw4w9WgXcQ');
+  assert.equal(detectPlatform('http://xhslink.com/o/2jYOikcHNUF'), 'xiaohongshu');
+  assert.equal(extractResourceId('http://xhslink.com/o/2jYOikcHNUF', 'xiaohongshu'), '2jYOikcHNUF');
+  assert.equal(detectPlatform('https://www.facebook.com/share/r/19o9JjmEjm/'), 'facebook');
+  assert.equal(extractResourceId('https://www.facebook.com/share/r/19o9JjmEjm/', 'facebook'), '19o9JjmEjm');
+  assert.equal(detectPlatform('https://www.youtube.com/watch?v=Qw5eFJzQ-ts&list=RDSwuiiBKXVfc&index=13'), 'youtube');
+  assert.equal(extractResourceId('https://www.youtube.com/watch?v=Qw5eFJzQ-ts&list=RDSwuiiBKXVfc&index=13', 'youtube'), 'Qw5eFJzQ-ts');
+  assert.equal(extractResourceId('https://www.youtube.com/live/dQw4w9WgXcQ?si=abc', 'youtube'), 'dQw4w9WgXcQ');
   assert.equal(extractResourceId('https://youtu.be/dQw4w9WgXcQ', 'youtube'), 'dQw4w9WgXcQ');
   assert.equal(extractResourceId('https://www.youtube.com/shorts/dQw4w9WgXcQ', 'youtube'), 'dQw4w9WgXcQ');
 });

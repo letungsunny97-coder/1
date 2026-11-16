@@ -145,33 +145,57 @@ export function videoApiPlugin(): Plugin {
           }
 
           try {
-            // Determine spoofed referer based on target URL
+            // Determine spoofed referer/origin based on target URL
             let referer = 'https://www.google.com';
+            let origin = '';
             if (targetUrl.includes('douyin') || targetUrl.includes('amemv')) {
               referer = 'https://www.douyin.com/';
             } else if (targetUrl.includes('tiktok')) {
               referer = 'https://www.tiktok.com/';
-            } else if (targetUrl.includes('bilibili') || targetUrl.includes('bilivideo')) {
+            } else if (
+              targetUrl.includes('bilibili') ||
+              targetUrl.includes('bilivideo') ||
+              targetUrl.includes('akamaized.net') ||
+              targetUrl.includes('upos-') ||
+              targetUrl.includes('hdslb.com')
+            ) {
               referer = 'https://www.bilibili.com/';
+              origin = 'https://www.bilibili.com';
             } else if (targetUrl.includes('instagram') || targetUrl.includes('cdninstagram')) {
               referer = 'https://www.instagram.com/';
             } else if (targetUrl.includes('fbcdn') || targetUrl.includes('facebook')) {
               referer = 'https://www.facebook.com/';
             } else if (targetUrl.includes('twimg') || targetUrl.includes('twitter')) {
               referer = 'https://twitter.com/';
-            } else if (targetUrl.includes('xiaohongshu') || targetUrl.includes('xhscdn')) {
+            } else if (
+              targetUrl.includes('xiaohongshu') ||
+              targetUrl.includes('xhscdn') ||
+              targetUrl.includes('rednote')
+            ) {
               referer = 'https://www.xiaohongshu.com/';
-            } else if (targetUrl.includes('youtube') || targetUrl.includes('googlevideo') || targetUrl.includes('vidsnap')) {
+            } else if (targetUrl.includes('etacloud.org')) {
+              referer = 'https://y2mate.gs/';
+              origin = 'https://y2mate.gs';
+            } else if (targetUrl.includes('vidsnap')) {
+              referer = 'https://vidsnap.app/';
+              origin = 'https://vidsnap.app';
+            } else if (targetUrl.includes('rapidcdn.app') || targetUrl.includes('snapcdn.app')) {
+              referer = 'https://snapsave.app/';
+              origin = 'https://snapsave.app';
+            } else if (targetUrl.includes('youtube') || targetUrl.includes('googlevideo')) {
               referer = 'https://www.youtube.com/';
             }
 
+            const fetchHeaders: Record<string, string> = {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              Referer: referer,
+              Accept: '*/*',
+            };
+            if (origin) fetchHeaders.Origin = origin;
+
             const response = await fetch(targetUrl, {
-              headers: {
-                'User-Agent':
-                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                Referer: referer,
-                Accept: '*/*',
-              },
+              headers: fetchHeaders,
             });
 
             if (!response.ok && response.status !== 206) {
@@ -185,12 +209,22 @@ export function videoApiPlugin(): Plugin {
               response.headers.get('content-type') ||
               (format === 'mp3' ? 'audio/mpeg' : format === 'jpg' ? 'image/jpeg' : 'video/mp4');
 
-            res.writeHead(200, {
+            if (contentType.includes('text/html') || contentType.includes('text/plain')) {
+              res.statusCode = 502;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Luồng tải từ máy chủ gốc chưa sẵn sàng hoặc đã hết hạn.' }));
+              return;
+            }
+
+            const outHeaders: Record<string, string> = {
               'Content-Type': contentType,
               'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
               'Cache-Control': 'no-cache',
               'Access-Control-Allow-Origin': '*',
-            });
+            };
+            const contentLen = response.headers.get('content-length');
+            if (contentLen) outHeaders['Content-Length'] = contentLen;
+            res.writeHead(200, outHeaders);
 
             if (response.body) {
               const reader = response.body.getReader();

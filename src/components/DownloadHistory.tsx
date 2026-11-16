@@ -38,7 +38,18 @@ export const DownloadHistory: React.FC<DownloadHistoryProps> = ({
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      window.prompt('Sao chép đường dẫn:', url);
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      } catch {}
     }
   };
 
